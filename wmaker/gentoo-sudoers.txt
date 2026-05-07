@@ -1,0 +1,30 @@
+### For WMRootMenu poweroff and reboot action to work, make sure poweroff and reboot sudo is allowed nopasswd for current user
+1. Make sure sudoers.d folder exist
+-- 'ls -ld /etc/sudoers.d'
+
+## if it exist, then create the file with:
+-- 'sudo visudo -f /etc/sudoers.d/jiyo'
+
+## If '/etc/sudoers.d' does NOT exist, create it:
+-- 'sudo mkdir -p /etc/sudoers.d'
+-- 'sudo chmod 755 /etc/sudoers.d'
+
+2. Edit the file
+-- add this line: 
+'jiyo ALL=(root) NOPASSWD: /usr/bin/poweroff'
+'jiyo ALL=(root) NOPASSWD: /usr/bin/reboot'
+
+or 
+
+'jiyo ALL=(root) NOPASSWD: /usr/sbin/poweroff'
+'jiyo ALL=(root) NOPASSWD: /usr/sbin/reboot'
+
+
+3. verify the sudoers file include that directory
+## look for this line:
+-- #includedir /etc/sudoers.d
+or 
+-- @includedir /etc/sudoers.d
+
+## If it is missing, add:
+-- '#includedir /etc/sudoers.d'

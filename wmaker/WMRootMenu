@@ -1,0 +1,26 @@
+(
+  "Larp Menu",
+  (Terminal, EXEC, uxterm),
+  (Run..., SHEXEC, "%A(Run, Type command:)"),
+  (
+    Apps,
+    (Browser, EXEC, "firefox-bin"),
+    (Editor, EXEC, "uxterm -e nvim"),
+    (Sysmon, 
+    	(htop, EXEC, "uxterm -e htop")
+    )
+  ),
+  (Wallpapers, OPEN_MENU, "-noext $HOME/.config/wallpapers WITH wmsetbg -u -t"), 
+  (Workspace, WORKSPACE_MENU),
+  (Workspace,
+  	(Refresh, REFRESH),
+	("Save Session", SAVE_SESSION),
+	("Clear Session", CLEAR_SESSION)
+  ),
+  ("Restart Window Maker", RESTART),
+  (
+    Action, 
+      ("Poweroff", EXEC, "sudo poweroff"),
+      ("Reboot", EXEC, "sudo reboot")
+    )
+)

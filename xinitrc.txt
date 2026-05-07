@@ -1,0 +1,10 @@
+xrdb -merge ~/.Xresources
+exec wmcpuload &
+exec wmmemload &
+exec wmCalClock &
+exec wmmon &
+exec wmtop &
+exec wmifinfo &
+exec wmacpi &
+exec wmomikuzi &
+exec wmaker

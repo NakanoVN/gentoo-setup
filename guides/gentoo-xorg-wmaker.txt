@@ -1,0 +1,46 @@
+### xorg installation
+1. add 'X elogind dbus -wayland' USE flag
+-- 'nano /etc/portage/make.conf'
+-- add this in USE variable: 'X elogind dbus -wayland'
+-- 'emerge -q --update --deep --newuse @world'
+
+2. set video cards
+-- 'nano /etc/portage/package.use/00video_cards'
+-- add this line: '*/* VIDEO_CARDS: -* vesa' or '*/* VIDEO_CARDS: -* virgl'
+
+3.  edit xorg-server USE flag
+-- 'nano /etc/portage/package.use/xorg-server'
+-- add this line: 'x11-base/xorg-server elogind -suid -glamor -dri'
+-- (optional): add '-llvm'
+
+4. edit mesa USE flag (optional)
+-- 'nano /etc/portage/package.use/mesa'
+-- add this line: 'media-libs/mesa -vulkan -gallium -dri -wayland -llvm'
+
+5. install and configure xorg-server
+-- 'emerge -q x11-base/xorg-server'
+-- 'nano ~/.xinitrc'
+-- add this line: 'exec wmaker'
+
+# ---------------------------------------
+
+### wmaker installation
+1. edit freetype USE flag
+-- 'nano /etc/portage/package.use/freetype'
+-- add this line: 'media-libs/freetype harfbuzz'
+-- make sure freetype is installed: 'emerge --search freetype' or 'emerge -q media-libs/freetype'
+
+2. edit windowmaker USE flag
+-- 'nano /etc/portage/package.use/windowmaker'
+-- add this line: 'x11-wm/windowmaker jpeg png tiff webp' --> making sure wmaker can set wallpaper
+
+3. edit xterm USE flag
+-- 'nano /etc/portage/package.use/xterm'
+-- add this line: 'x11-terms/xterm xft truetype unicode'
+
+4. install windowmaker and gdk-pixbuf
+-- 'emerge -q x11-libs/gdk-pixbuf x11-wm/windowmaker'
+
+# ------------------------------------------
+
+

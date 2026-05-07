@@ -1,0 +1,170 @@
+1. format and mount partition
+-- 'cfdisk /dev/sda'
+-- 'mkfs.ext4 /dev/sda3'
+-- 'mkfs.vfat -F32 /dev/sda1'
+-- 'mkswap /dev/sda2'
+-- 'swapon /dev/sda2'
+-- 'mkdir -p /mnt/gentoo'
+-- 'mount /dev/sda3 /mnt/gentoo'
+-- 'mkdir -p /mnt/gentoo/efi'
+-- 'mount /dev/sda1 /mnt/gentoo/efi'
+
+2. fix time with date, format MMDDhhmmYYYY syntax (Month, Day, hour, minute and Year).
+-- 'date 100313162021'
+
+3. download stage file
+-- 'cd /mnt/gentoo'
+-- 'links https://www.gentoo.org/downloads/mirrors/'
+-- go to amd64 -> download openrc stage file
+-- save and download, then press q to exit
+
+4. install the stage file
+-- 'tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner -C /mnt/gentoo'
+
+5. configuring compile options with flags
+-- 'nano /mnt/gentoo/etc/portage/make.conf'
+-- add '-march=native' into 'COMMON_FLAGS="-march=native -O2 -pipe"'
+
+6. add MAKEOPTS to '/etc/portage/make.conf'
+-- 'nano /mnt/gentoo/etc/portage/make.conf'
+-- add this line: 'MAKEOPTS="-j2"' if ram is 3 or 4
+-- or
+-- add 'MAKEOPTS="-j1"' if ram is 2
+
+## add RUSTFLAGS to '/etc/portage/make.conf' (optional)
+-- 'nano /mnt/gentoo/etc/portage/make.conf'
+-- add this line: 'RUSTFLAGS="${RUSTFLAGS} -C target-cpu=native"'
+
+7. chrooting
+-- 'cp --dereference /etc/resolv.conf /mnt/gentoo/etc/' --> copy DNS info
+
+## mounting the necessary filesystem
+-- mount --types proc /proc /mnt/gentoo/proc
+-- mount --rbind /sys /mnt/gentoo/sys
+-- mount --make-rslave /mnt/gentoo/sys
+-- mount --rbind /dev /mnt/gentoo/dev
+-- mount --make-rslave /mnt/gentoo/dev
+-- mount --bind /run /mnt/gentoo/run
+-- mount --make-slave /mnt/gentoo/run
+
+## entering new environment
+-- chroot /mnt/gentoo /bin/bash
+-- source /etc/profile
+-- export PS1="(chroot) $PS1"
+
+8. configuring portage
+-- 'emerge-webrsync'
+
+## selecting mirrors (optional)
+-- 'emerge --ask --verbose --oneshot app-portage/mirrorselect'
+-- 'mirrorselect -i -o >> /etc/portage/make.conf'
+
+## Update gentoo ebuild repository (optional)
+-- 'emerge --sync --quiet'
+
+## choosing profile
+-- 'eselect profile list'
+-- make sure it choose number 1 or 'default/linux/amd64/23.0 *'
+-- if not, choose with 'eselect profile set 1'
+
+## adding binary package host (recommended)
+-- 'nano /etc/portage/binrepos.conf/gentoo.conf'
+-- edit this line: 'priority' into 'priority = 9959'
+-- make sure sync-uri variable right: 'sync-uri = https://distfiles.gentoo.org/releases/<arch>/binpackages/<variant>'
+   example: sync-uri = https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64/
+
+-- 'nano /etc/portage/make.conf'
+-- add this line: 'FEATURES="${FEATURES} getbinpkg"' and 'FEATURES="${FEATURES} binpkg-request-signature"'
+-- 'getuto'
+
+9. configuring USE variable (optional)
+-- 'nano /etc/portage/make.conf'
+-- add this line: 'USE=-systemd -kde -gnome -bluetooth'
+
+## CPU_FLAGS_
+-- emerge --ask --oneshot app-portage/cpuid2cpuflags
+-- 'cpuid2cpuflags' --> Inspect the output manually if curious:--
+-- 'echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags' --> copy the output into package.use
+
+## VIDEO_CARDS
+-- 'nano /etc/portage/package.use/00video_cards'
+-- add this line: '*/* VIDEO_CARDS: -* virgl' or '*/* VIDEO_CARDS: -* vesa' 
+
+10. Configure ACCEPT_LICENSE variable (optional)
+-- 'nano /etc/portage/make.conf'
+-- add this line: 'ACCEPT_LICENSE="-* @FREE @BINARY-REDISTRIBUTABLE"'
+
+11. updating @world set (optional)
+-- 'emerge --ask --verbose --update --deep --newuse @world'
+
+12. set timezone
+-- 'ln -sf ../usr/share/zoneinfo/Asia/Jakarta /etc/localtime'
+
+13. configures locale
+-- 'nano /etc/locale.gen'
+-- uncomment 'en_US' line
+-- 'locale-gen'
+
+## locale selection
+-- 'eselect locale list' --> list all locales available
+-- 'eselect locale set 4' --> choose locale 4
+--  env-update && source /etc/profile && export PS1="(chroot) ${PS1}" --> reload the env
+
+14. installing firmware
+-- 'emerge --ask sys-kernel/linux-firmware'
+-- 'emerge --ask sys-kernel/sof-firmware' --> (optional)
+
+15. sys-kernel/installkernel
+## bootloader (GRUB) and initramfs (dracut)
+-- 'nano /etc/portage/package.use/installkernel'
+-- add this line: 'sys-kernel/installkernel grub dracut'
+-- 'emerge -q sys-kernel/installkernel'
+
+## to prevent error when installing gentoo-kernel-bin, follow the instruction below:
+-- 'nano /etc/kernel/cmdline'
+-- add this line: 'quiet splash' and optionally 'root=UUID=xxxx'
+-- 'mkdir -p /etc/cmdline.d'
+-- 'ln -s /etc/kernel/cmdline /etc/cmdline.d/00-installkernel.conf'
+-- 'emerge --ask sys-kernel/installkernel'
+
+16. installing distribution kernel
+-- 'emerge -q sys-kernel/gentoo-kernel-bin'
+
+17. partition labels in fstab
+-- 'nano /etc/fstab'
+-- add this line:
+/dev/sda1	/efi	vfat	defaults	0 2
+/dev/sda2	none	swap	sw		0 0
+/dev/sda3	/	ext4	default		0 1
+
+18. GRUB and efibootmgr config
+## setup
+-- 'nano /etc/portage/make.conf'
+-- add this line: 'GRUB_PLATFORMS="efi-64"'
+
+## installing package
+-- 'emerge -q sys-boot/grub sys-boot/efibootmgr sys-boot/os-prober'
+-- 'grub-install --efi-directory=/efi'
+-- 'grub-mkconfig -o /boot/grub/grub.cfg'
+
+19. hostname and user configuration
+-- 'echo "rann" > /etc/hostname'
+-- 'nano /etc/hosts'
+-- add this line 127.0.0.1	rann
+
+## user config:
+-- 'passwd'
+-- 'useradd -m -G users,wheel,video,input -s /bin/bash rann'
+-- 'passwd rann'
+
+## config user privileges:
+-- 'emerge -q app-admin/sudo app-editors/vim'
+-- 'EDITOR=vim visudo'
+-- uncomment the 'wheel all' line
+
+20. exit and umount
+-- 'exit'
+-- 'cd'
+-- 'umount -l /mnt/gentoo/dev{/shm,/pts,}'
+-- 'umount -R /mnt/gentoo'
+-- 'reboot'

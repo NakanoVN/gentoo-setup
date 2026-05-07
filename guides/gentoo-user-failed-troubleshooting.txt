@@ -1,0 +1,30 @@
+### How to fix user.username failed error in gentoo
+1. make sure to install and enable dbus, elogind and sysklogd
+-- 'emerge -q app-admin/sysklogd sys-auth/elogind sys-apps/dbus'
+-- 'rc-servie dbus status', 'rc-servie sysklogd status', 'rc-servie elogind status' --> check service status
+
+## if not enabled yet: 
+-- 'rc-update add dbus default' and 'rc-service dbus start' --> enable dbus
+-- 'rc-update add sysklogd' and 'rc-service sysklogd start' --> enable sysklogd
+-- 'rc-update add elogind' and 'rc-service elogind start' --> enable elogind
+
+2. check pam configuration 
+-- 'nano /etc/pam.d/system-login'
+-- make sure this line is present: session optional pam_elogind.so
+-- run 'dispatch-conf' or 'etc-update' if you just install elogind
+
+3. check xdg_runtime_dir 
+-- 'echo $XDG_RUNTIME_DIR'
+-- 'ls -ld /run/user/$(id -u)'
+-- if path is empty that mean xdg_runtime_dir is not running
+
+4. How to fix
+-- 'emerge -pv sys-auth/pambase'
+-- if elogind is not highlighted by red, but instead blue (-elogind). that mean elogind is not active inside the USE flag
+
+## activate elogind USE flag
+-- 'nano /etc/portage/package.use/pambase'
+-- add this line: sys-auth/pambase elogind
+-- 'emerge --ask --oneshot sys-auth/pambase' --> re-emerge
+-- 'etc-update' --> update configuration
+-- reboot system

@@ -1,0 +1,66 @@
+### gentoo wmaker dockapps
+
+1. dependencies for dockapps
+x11-libs/libdockapp (not yet)
+x11-libs/libX11 
+x11-libs/libXext
+x11-libs/libXpm
+x11-libs/libXft
+dev-build/autoconf
+dev-build/automake
+dev-build/libtool
+dev-build/make
+dev-build/cmake
+media-fonts/font-util (not yet)
+sys-kernel/linux-headers 
+sys-power/upower (not yet)
+dev-libs/argtable (not yet)
+
+2. other package/tools (add-ons)
+app-editors/neovim
+app-editors/vim
+dev-vcs/git
+net-misc/curl
+app-shells/zsh
+app-misc/ranger
+sys-process/htop
+app-misc/fastfetch
+media-gfx/feh
+
+3. dockapps installation
+git clone https://github.com/window-maker/dockapps.git
+
+cd ../wmmemload
+autoreconf -fi or ./autogen
+./configure
+make
+sudo make install
+
+4. dockapps list
+main:
+libdockapp
+wmcpuload
+wmmemload
+wmCalClock
+wmmon
+wmtop
+wmomikuzi (accessories)
+wmifinfo
+wmacpi
+
+fun dockapps:
+wmtetris
+wmdots
+wmcube
+wmomikuzi
+wmsun
+
+other sysmon:
+wmclock
+asbeats
+asmon
+wmtz
+wmfu
+cputnik
+
+

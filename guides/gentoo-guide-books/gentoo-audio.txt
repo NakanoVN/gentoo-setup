@@ -1,0 +1,27 @@
+Setting up audio in gentoo :33
+
+1. make sure you already install sof-firmware
+- 'emerge -q sys-kernel/sof-firmware'
+
+2. install and configure pipewire
+- 'emerge -q media-video/pipewire media-sound/wireplumber'
+
+## set the global USE flags
+- 'nano /etc/portage/make.conf'
+- add this in USE flags: 'pipewire sound-server'
+- 'emerge --ask --update --deep --newuse @world' -> rebuild every package
+   or 'emerge --ask --update --deep --changed-use @world'
+
+## configurig audio
+- If using a desktop environment (like XFCE), it will usually start PipeWire automatically via XDG_RUNTIME_DIR.
+- If using a standalone window manager (like i3, dwm, or bspwm), add these lines to the bottom of your ~/.xinitrc or startup script
+- 'nano ~/.xinitrc'
+- add this line:
+	# Start PipeWire and WirePlumber session manager
+	pipewire &
+	pipewire-pulse &
+	wireplumber &
+
+# notes:
+Because PipeWire runs as a user service rather than a system-wide root daemon,
+you do not use rc-update add pipewire default. Instead, it needs to start when the user logs into their session.

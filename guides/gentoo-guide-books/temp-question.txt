@@ -1,0 +1,6 @@
+Giving you a comparison of install times and complexity between the twoExplaining how Gentoo's USE flags provide the ultimate control Lain would want
+
+diff between gentoo-kernel-bin, gentoo-kernel and gentoo-sources
+
+
+

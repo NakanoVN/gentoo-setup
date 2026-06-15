@@ -1,0 +1,95 @@
+Kedua perintah tersebut digunakan untuk memperbarui seluruh sistem Gentoo Anda (@world), namun memiliki satu perbedaan krusial pada cara menangani perubahan USE flags.
+Berikut adalah penjelasan detail mengenai fungsi dari setiap flag dan perbedaan utama di antara keduanya.
+------------------------------
+## Perbedaan Utama (--changed-use vs --newuse)
+
+* --changed-use (atau -U): Hanya akan membangun ulang (recompile) suatu paket jika Anda mengubah secara manual pengaturan USE flags paket tersebut di /etc/portage/package.use atau /etc/portage/make.conf. Jika tim developer Gentoo menambahkan atau menghapus USE flags baru pada ebuild di repositori, Portage akan mengabaikannya selama pilihan personal Anda tidak berubah.
+* --newuse (atau -N): Jauh lebih agresif. Perintah ini akan membangun ulang paket jika ada perubahan apa pun pada USE flags, baik karena perubahan manual yang Anda lakukan, maupun karena developer Gentoo memperbarui ebuild (misalnya ada fitur baru yang ditambahkan secara default oleh sistem).
+
+Rekomendasi Praktis: --changed-use adalah pilihan yang lebih populer untuk pembaruan mingguan/bulanan karena menghemat waktu kompilasi. Gunakan --newuse terutama saat Anda melakukan pembaruan profil Gentoo secara besar-besaran (misalnya pindah dari profil lama ke profil baru).
+
+------------------------------
+## Fungsi dari Setiap Flag (Parameter)
+Berikut adalah fungsi dari masing-masing flag yang Anda gunakan:
+## 1. --ask (atau -a)
+Portage tidak akan langsung menginstal paket. Sastem akan menampilkan daftar paket yang akan diunduh dan dikompilasi terlebih dahulu, lalu memunculkan perintah konfirmasi [Yes/No] sebelum melanjutkan proses.
+## 2. --verbose (atau -v)
+Menampilkan informasi yang sangat detail di layar. Anda bisa melihat status lisensi paket, ukuran unduhan, dan visualisasi status USE flags yang aktif (berwarna merah/hijau/biru dengan tanda + atau -).
+## 3. --update (atau -u)
+Memberitahu Portage untuk memeriksa apakah ada versi paket yang lebih baru di repositori Gentoo dibandingkan dengan versi yang saat ini terpasang di komputer Anda. Tanpa flag ini, Portage hanya akan menginstal ulang versi yang sama jika paket tersebut sudah ada.
+## 4. --deep (atau -D)
+Secara default, emerge @world hanya memeriksa pembaruan untuk paket-paket utama yang terdaftar langsung di file @world Anda. Dengan menambahkan --deep, Portage akan memeriksa seluruh rantai dependensi dari atas ke bawah (termasuk pustaka sistem terkecil atau paket berlapis yang ditarik secara tidak langsung).
+## 5. @world
+Ini adalah target utama Portage yang mencakup seluruh paket yang Anda instal secara eksplisit (isi file /var/lib/portage/world) ditambah dengan paket-paket inti sistem (system set) yang krusial agar OS Anda bisa berjalan dengan normal.
+Apakah Anda sedang bersiap untuk melakukan pembaruan sistem berkala, atau apakah Anda baru saja mengubah sebuah USE flag global di dalam file make.conf?
+
+
+
+# -----------------------------------------
+
+Running emerge --deep --newuse @world directly without the --update parameter creates a very specific, unintended behavior in Portage: It will not update your software to newer versions.
+Here is exactly what will happen to your Gentoo system if you run that command, broken down by why missing flags change the outcome.
+## 1. You missed the --update flag
+Without --update, Portage completely ignores whether a newer version of a package exists in the Gentoo repository.
+
+* It will only look at the software versions currently installed on your drive.
+* It will only trigger a re-compilation if an installed package has a modified or newly added USE flag that needs to be toggled.
+
+## 2. What --deep --newuse will do on its own
+Portage will scan your entire system dependency tree (--deep) and look at every installed package. If any package has a USE flag that was changed by you in package.use or changed by the Gentoo developers in an ebuild update, Portage will re-compile that exact same version of the package just to apply the flag change.
+If no USE flags have changed across your system, the command will exit immediately and do absolutely nothing.
+## 3. You missed the --ask flag
+Running it without --ask means Portage will not show you a preview of what it is about to do. If it finds 50 packages that need USE flag updates, it will instantly begin compiling them without giving you a chance to review or cancel the process.
+------------------------------
+## What you should run instead
+If your goal is to fully update your system while also making sure all new and changed USE flags are applied properly, you should combine all the flags like this:
+
+emerge --ask --verbose --update --deep --newuse @world
+
+(Or use the standard short-hand equivalent: emerge -avuDN @world)
+This ensures your packages are upgraded to the latest available versions, all dependencies are scanned, all new USE flags are respected, and you get a safety prompt before compilation begins.
+Would you like to know how to use dispatch-conf or etc-update to safely handle config file updates after your @world updates finish?
+
+
+# ----------------------------------
+
+No, you should not run emerge --depclean after every single minor package upgrade, but you definitely should run it after every major system upgrade (like your weekly or monthly @world update).
+Running it too frequently isn't harmful, but doing it blindly without reviewing the output can occasionally cause issues if your system state isn't perfectly clean.
+Here is a practical breakdown of how and when to use it safely.
+------------------------------
+## The Risk: Why You Shouldn't Just Automate It
+depclean works by looking at your @world file and calculating every single package required to keep those world packages running. Anything else left over is considered "orphan" and marked for deletion.
+If you accidentally installed a tool in the past using a direct command without --oneshot, it is safely inside your @world file. However, if a critical system tool was pulled in as an indirect dependency months ago, and a software update changes how that dependency works, depclean might try to remove it. If you don't look at the list before pressing "Yes", you could accidentally uninstall something you still use, like a wireless tool or an audio plugin.
+------------------------------
+## The Safe Upgrade Workflow (The 4-Step Rule)
+Instead of running it after every minor package, you should follow this exact sequence every time you complete a large @world upgrade:
+## 1. Upgrade the System
+Bring your packages and USE flags up to date.
+
+emerge --ask --verbose --update --deep --changed-use @world
+
+## 2. Update Configuration Files (Mandatory)
+Before cleaning anything, you must merge system configurations. Tools often change their package dependencies inside their configuration files.
+
+dispatch-conf
+
+(or etc-update if you prefer).
+## 3. Rebuild Broken Links
+Ensure no software binaries are left broken or pointing to older version paths that were just upgraded.
+
+emerge --ask --verbose @preserved-rebuild
+
+## 4. Safe Clean
+Now that the system configuration and paths are completely settled, it is safe to run depclean. Always use the --ask flag so you can manually scan the list of what it wants to delete.
+
+emerge --ask --depclean
+
+## Quick Summary
+
+* Skip it if you just updated a single standalone app (like a web browser).
+* Run it as the final step whenever you run your major, sweeping system updates.
+
+Are you currently looking at a list of packages that depclean wants to remove, and you want to double-check if any of them are unsafe to delete?
+
+# ------------------------------------------
+

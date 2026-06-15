@@ -1,0 +1,151 @@
+When you try to install a package in Gentoo, Portage sometimes hits a roadblock. It might realize that the package requires a specific USE flag enabled, or it needs you to unmask a testing version (`~amd64`) or an experimental keyword to proceed.
+
+Instead of failing and making you manually open, edit, and type lines into your `/etc/portage/` files, **`--autounmask-write` tells Portage to automatically write those required configuration changes to your disk.**
+
+Here is exactly how it works and how to use it safely.
+
+---
+
+### The Workflow: How it actually works
+
+You will rarely use `--autounmask-write` on your first attempt. It's part of a three-step dance:
+
+#### 1. The Block
+
+You try to install something (like Discord), and Portage complains:
+
+```bash
+emerge --ask net-im/discord
+
+```
+
+Portage stops and says: *"The following keyword changes are necessary to proceed..."* or *"The following USE changes are necessary..."*
+
+#### 2. The Write
+
+Instead of opening your text editor, you run the command again, adding `--autounmask-write`:
+
+```bash
+emerge --ask --autounmask-write net-im/discord
+
+```
+
+Portage calculates the dependencies again, tells you what it needs to change, and **writes those configuration files to a temporary location.** It does *not* apply them to your system immediately.
+
+#### 3. The Commit (`dispatch-conf`)
+
+To actually review and apply those changes permanently, you run Gentoo's configuration update tool:
+
+```bash
+dispatch-conf
+
+```
+
+*(Or `etc-update` if you prefer the older tool).*
+This tool will show you a "diff" of what Portage wants to change. You press **`u`** (use/update) to accept the changes. Once accepted, you can finally run your original `emerge` command, and it will install seamlessly.
+
+---
+
+### Where does it write the changes?
+
+Portage is smart. If your `/etc/portage/package.use` or `/etc/portage/package.accept_keywords` are **directories** (which is the modern Gentoo standard), `--autounmask-write` will automatically create files inside them:
+
+* It usually creates a file named **`zz-autounmask`** inside those folders.
+* Because it starts with `zz`, it loads last, allowing it to override your manual configurations safely.
+* It keeps your hand-written files (like your `windowmaker` file) completely untouched and organized.
+
+### A Quick Word of Caution
+
+While it is incredibly convenient, don't blindly accept everything `--autounmask-write` throws at you.
+
+> ⚠️ **Warning:** If you try to install a package that has massive dependency conflicts, `--autounmask-write` might suggest changing 50 different USE flags or unmasking highly unstable packages down a massive dependency rabbit hole. Always look at what `dispatch-conf` is trying to change before you press `u`.
+
+# -------------------------------
+
+For an Intel Celeron laptop featuring **Intel UHD Graphics**, the correct configuration covers both the global driver flags and the video acceleration packages.
+
+Because it is an Intel UHD iGPU, it relies on modern Intel graphics architectures (like Gemini Lake, Jasper Lake, Alder Lake-N, etc.), meaning **`iris`** is your primary 3D driver, though you should include `intel` as a fallback.
+
+Here is exactly what you need to put in your files:
+
+### Step 1: The Drivers (`00video_cards`)
+
+Since you want to use the modular handbook method, open or create your video cards file:
+
+```bash
+nano /etc/portage/package.use/00video_cards
+
+```
+
+Add the following line:
+
+```bash
+*/* video_cards_intel video_cards_iris
+
+```
+
+* **`video_cards_iris`**: This handles modern Intel 3D rendering (Mesa Iris driver), which powers all Intel UHD and Iris architectures.
+* **`video_cards_intel`**: This provides the classic 2D drivers and fallback components for Xorg.
+
+---
+
+### Step 2: Update Your System
+
+After saving that file, tell Gentoo to rebuild Mesa and your display packages so they apply your changes:
+
+```bash
+emerge --ask --changed-use --deep @world
+
+```
+
+---
+
+### Step 3: Hardware Video Acceleration (The Arch Equivalent)
+
+To ensure smooth 4K/1080p video playback on YouTube without maxing out your Celeron CPU, you need the VA-API video acceleration driver.
+
+Install the modern Intel media driver:
+
+```bash
+emerge --ask media-libs/intel-media-driver
+
+```
+
+> 💡 **Kernel Note:** If you are using `gentoo-kernel-bin` (the binary kernel), you are all set. If you are compiling your own kernel from source, ensure that **`CONFIG_DRM_I915`** is enabled as a built-in or module so your system can initialize the UHD graphics on boot!
+
+# ---------------------------------
+
+Yes, exactly! If you are using `gentoo-kernel-bin`, your driver setup is practically identical to Arch Linux.
+
+Because `gentoo-kernel-bin` comes with all the standard Intel graphics modules (`i915` / `xe`) already pre-compiled and ready to go out of the box, you don't have to touch any kernel configurations at all.
+
+Your entire setup process boils down to just three quick steps:
+
+### 1. Set the video cards flag
+
+Make sure your `/etc/portage/package.use/00video_cards` file has the line we discussed:
+
+```bash
+*/* video_cards_intel video_cards_iris
+
+```
+
+### 2. Let Portage build the Mesa drivers
+
+Run the system update so Portage rebuilds your graphics stack with those Intel flags enabled:
+
+```bash
+emerge --ask --changed-use --deep @world
+
+```
+
+### 3. Install the video acceleration driver
+
+Install the media driver for hardware acceleration (the Gentoo equivalent of `pacman -S intel-media-driver`):
+
+```bash
+emerge --ask media-libs/intel-media-driver
+
+```
+
+Once that finishes, reboot your laptop. Your Intel UHD graphics and hardware video decoding will be fully operational and ready for your window manager!

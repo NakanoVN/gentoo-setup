@@ -1,0 +1,209 @@
+GENTOO WITH SYTEMD-BOOT INSTALLATION GUIDE BOOK BY MEE:33
+
+1. format and mount partition
+- 'cfdisk /dev/sda' -> change the efi partition type to esp for systemd-boot
+- 'mkfs.ext4 /dev/sda3'
+- 'mkfs.vfat -F32 /dev/sda1'
+- 'mkswap /dev/sda2'
+- 'swapon /dev/sda2'
+- 'mkdir -p /mnt/gentoo'
+- 'mount /dev/sda3 /mnt/gentoo'
+- 'mkdir -p /mnt/gentoo/efi'
+- 'mount /dev/sda1 /mnt/gentoo/efi'
+
+2. fix time with date, format MMDDhhmmYYYY syntax (Month, Day, hour, minute and Year)
+- 'date 060714562026'
+
+3. download stage file
+- 'cd /mnt/gentoo'
+- 'links https://www.gentoo.org/downloads/mirrors/'
+- go to amd64 and download openrc stage file
+- then press q to quit
+
+4. extract the stage file
+- 'tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner -C /mnt/gentoo'
+
+5. configuring compile options with flags
+## cpu architecture
+- 'nano /mnt/gentoo/etc/portage/make.conf'
+- add '-march=native' into 'COMMON_FLAGS="-march=native -O2 -pipe"'
+
+## MAKEOPTS flags
+- 'nano /mnt/gentoo/etc/portage/make.conf'
+- add this line: 'MAKEOPTS="-j2"'
+
+## RUSTFLAGS (optional)
+- 'nano /mnt/gentoo/etc/portage/make.conf'
+- add this line: 'RUSTFLAGS="${RUSTFLAGS} -C target-cpu=native"'
+
+6. chrooting
+- 'cp --dereference /etc/resolv.conf /mnt/gentoo/etc' --> copy DNS info
+
+## mounting the necessary filesystem
+- 'mount --types proc /proc /mnt/gentoo/proc'
+- 'mount --rbind /sys /mnt/gentoo/sys'
+- 'mount --make-rslave /mnt/gentoo/sys'
+- 'mount --rbind /dev /mnt/gentoo/dev'
+- 'mount --make-rslave /mnt/gentoo/dev'
+- 'mount --bind /run /mnt/gentoo/run'
+- 'mount --make-slave /mnt/gentoo/run'
+
+## entering new environment
+- 'chroot /mnt/gentoo /bin/bash'
+- 'source /etc/profile'
+- 'export PS1="(chroot) $PS1"'
+
+7. configuring portage
+- 'emerge-webrsync'
+
+## selecting mirrors (optional)
+- 'emerge -q --oneshot app-portage/mirrorselect'
+- 'mirrorselect -i -o >> /etc/portage/make.conf'
+
+## update gentoo ebuild repository (optional)
+- 'emerge --sync --quiet'
+
+## choosing profile
+- 'eselect profile list | less'
+- make sure it choose 1 or 'default/linux/amd64/23.0 *'
+- if not, choose with 'eselect profile set 1'
+
+## adding binary package host (recommended)
+- 'nano /etc/portage/binrepos.conf/gentoo.conf'
+- edit hits line: 'priority' into 'priority = 9959'
+- make sure sync-uri variable right: 'sync-uri = https://distfiles.gentoo.org/releases/<arch>/binpackages/<variant>'
+  example: sync-uri = https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64/
+
+- 'nano /etc/portage/make.conf'
+- add this line: 'FEATURES="${FEATURES} getbinpkg" and FEATURES="${FEATURES} binpkg-request-signature"'
+- 'getuto' -> set up the necessary keyring for verification
+
+8. configuring world USE variable
+- 'nano /etc/portage/make.conf'
+- add this line: 'USE="-systemd -kde -gnome -bluetooth -wayland"'
+
+## CPU_FLAGS
+- 'emerge -q --oneshot app-portage/cpuid2cpuflags'
+- 'cpuid2cpuflags' -> inspect the output manually
+- 'echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags' -> copy the output into package.use
+
+## VIDEO_CARDS
+- 'nano /etc/portage/package.use/00video_cards'
+- add this line: '*/* VIDEO_CARDS: -* virgl' for QEMU/KVM or '*/* VIDEO_CARDS: -* vesa' for generic/fallback
+# alternative VIDEO_CARDS value: 'intel' for Intel Nehalem and newer
+				 'intel i915' for Intel Gen 2 and 3 Supported list
+				 
+9. configure ACCEPT_LICENSE variable (optional)
+- 'nano /etc/portage/make.conf'
+- add this line: 'ACCEPT_LICENSE="-* @FREE @BINARY-REDISTRIBUTABLE"'
+
+10. updating @world set
+- 'emerge -q --update --deep --newuse --getbinpkg @world'
+
+11. set timezone
+- 'ln -sf ../usr/share/zoneinfo/Asia/Jakarta /etc/localtime'
+
+12. configures locale
+- 'nano /etc/locale.gen'
+- uncomment 'en_US' line
+- 'locale-gen'
+- (optional): 'echo "LANG=en_US.UTF-8" >> /etc/locale.conf'
+
+## locale selection
+- 'eselect locale list'
+- 'eselect locale set 4'
+- 'env-update && source /etc/profile && export PS1="(chroot) ${PS1}"' -> reload the env
+
+13. installing firmware
+- 'emerge -q sys-kernel/linux-firmware'
+- 'emerge -q sys-kernel/sof-firmware' -> optional
+
+14. bootloader and kernel automated scripts
+## systemd-utils and installkernel flags
+- 'nano /etc/portage/package.use/installkernel'
+- add this line: 'sys-kernel/installkernel systemd systemd-boot dracut'
+- 'nano /etc/portage/package.use/systemd-utils'
+- add this line: 'sys-apps/systemd-utils boot kernel-install'
+- 'emerge -q --oneshot sys-apps/systemd-utils sys-kernel/installkernel'
+
+## bootloader configuration
+- 'bootctl install' or 'bootctl install --esp-path=/efi' -> explicitly specify the path	
+- 'nano /efi/loader/loader.conf'
+- add these lines: 'default gentoo-*'
+		   'timeout 3' or 'timeout menu-force' -> for indefinite time
+		   'console-mode auto'
+		   'editor yes'
+
+## setup kernel command line arguments
+- 'blkid /dev/sda3' copy the PARTUUID or UUID of root filesystem
+- 'nano /etc/kernel/cmdline'
+- add this line: 'root=PARTUUID=xxxxxx-xxxxx rw quiet splash' -> recommended
+  or if using UUID: 'root=UUID=xxxxxx-xxxxx rw quiet splash'
+
+## link it so installkernel picks it up properly
+- 'mkdir -p /etc/cmdline.d'
+- 'ln -s /etc/kernel/cmdline /etc/cmdline.d/00-installkernel.conf'
+
+15. installing distribution kernel
+- 'emerge -q sys-kernel/gentoo-kernel-bin'
+
+16. partition labels in fstab
+- 'nano /etc/fstab'
+- add these lines: '/dev/sda1	/efi	vfat	defaults,umask=0077	0 2' -> umask=0077 so only root can read n' write the esp. (optional: add 'noauto')
+		   '/dev/sda2	none	swap	sw	0 0'
+		   '/dev/sda3	/	ext4	defaults	0 1'
+
+# note: umask=0077 so only root can read n' write the esp. 
+	optional: add 'noauto' so the EFI partition isn't constantly mounted during normal operation, protecting it from accidental modifications
+	reminder: you must manually mount EFI partition every time the kernel updates, or the update will fail to write to the bootloader.
+
+17. installing and configuring packages for user session (to prevent user failed)
+- 'emerge -q sys-boot/efibootmgr app-admin/sysklogd sys-auth/elogind sys-apps/dbus net-misc/networkmanager'
+- 'rc-update add dbus default'
+- 'rc-update add sysklogd'
+- 'rc-update add elogind'
+- 'rc-update add NetworkManager'
+
+## check pam configuration (optional)
+- 'nano /etc/pam.d/system-login'
+- make sure this line is present: session optional pam_elogind.so
+- run 'dispatch-conf' or 'etc-update' if you just install elogind
+
+## check xdg_runtime_dir (optional)
+- 'echo $XDG_RUNTIME_DIR'
+- 'ls -ld /run/user/$(id -u)'
+- if path is empty that mean xdg_runtime_dir is not running
+
+## 
+- 'emerge -pv sys-auth/pambase'
+- if elogind is not highlighted by red, but instead blue (-elogind). that mean elogind is not active inside the pambase flags
+
+# fix with:
+- 'nano /etc/portage/package.use/pambase'
+- add this line: 'sys-auth/pambase elogind'
+- 'emerge -q --oneshot sys-auth/pambase' -> re-emerge
+- 'etc-update' -> update configuration
+
+18. hostname and user configuration
+- 'echo "fsociety" > /etc/hostname'
+- 'nano /etc/conf.d/hostname' -> hostname fallback
+- change the hostname
+- 'nano /etc/hosts'
+- add this line: '127.0.0.1	fsociety'
+
+## user config
+- 'passwd'
+- 'useradd -mG wheel,users,video,input -s /bin/bash yuri'
+- 'passwd yuri'
+
+## config user privileges'
+- 'emerge -q app-admin/sudo app-editors/vim'
+- 'EDITOR=vim visudo'
+- uncomment the 'wheel all' line
+
+19. exit and umount
+- 'exit'
+- 'cd'
+- 'umount -l /mnt/gentoo/dev{/shm,/pts,}'
+- 'umount -R /mnt/gentoo'
+- 'reboot'
